@@ -1,0 +1,185 @@
+/* The site's own styles, on the design tokens in app/tokens.css. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--color-ink);
+  background: var(--color-paper);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--text-3xl);
+}
+
+h2 {
+  font-size: var(--text-2xl);
+}
+
+/* The desktop grid: content reaches 75rem (1200px) wide, in twelve columns
+   from 960px; one column on a phone. Prose keeps its own measure. */
+.container {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-inline: var(--space-5);
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .grid > * {
+    grid-column: span 6;
+  }
+}
+
+@media (min-width: 960px) {
+  .grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .grid > .hero {
+    grid-column: span 7;
+  }
+
+  .grid > .panel {
+    grid-column: span 5;
+  }
+}
+
+.prose {
+  max-width: var(--measure);
+}
+
+.site-header,
+.site-footer {
+  padding-block: var(--space-4);
+}
+
+a {
+  color: var(--color-accent);
+}
+
+.cta,
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-5);
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform var(--motion-instant) var(--ease-out);
+}
+
+.button--quiet {
+  background: transparent;
+  color: var(--color-accent);
+}
+
+.cta:hover,
+.button:hover {
+  transform: translateY(-1px);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+input {
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+}
+
+.saved-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.saved-list__entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.saved-list__items {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.saved-list__items li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The one orchestrated load moment (components/kit/Reveal.tsx). Blocks rise
+   into place and are never hidden: the first paint already shows the page's
+   largest content, so the load moment never delays it (#233 C16). */
+@keyframes reveal {
+  from {
+    transform: translateY(16px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    animation: reveal var(--motion-slow) var(--ease-out) both;
+    animation-delay: calc(var(--reveal-order, 0) * var(--reveal-step) + var(--motion-instant));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

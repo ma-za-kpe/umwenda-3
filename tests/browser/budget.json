@@ -1,0 +1,8 @@
+{
+  "schema": "crew.site-budget@1",
+  "layout": { "desktopContentMin": 960 },
+  "performance": { "lcpMs": 2500, "cls": 0.1, "tbtMs": 200, "scriptKb": 600 },
+  "lighthouse": { "presets": ["desktop", "mobile"], "performance": 90, "accessibility": 100 },
+  "motion": { "loadMoment": true },
+  "visual": { "maxDiffRatio": 0.002 }
+}

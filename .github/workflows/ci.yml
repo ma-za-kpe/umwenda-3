@@ -1,0 +1,190 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    # The static export is what Pages serves, so the frozen tests run on it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_BASE_PATH: ""
+      SITE_RELEASE: ${{ github.sha }}
+      # A task pull request into release/<n> checks the pages built so far;
+      # main and the release pull request check every planned page.
+      CREW_PARTIAL: ${{ startsWith(github.base_ref, 'release/') && '1' || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Build the static export from the lockfile
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run build
+      - name: Frozen acceptance tests (exported site and brief)
+        run: |
+          python tests/site_view.py
+          python -m unittest discover -s tests -v
+  qa:
+    # QA's own tests, written by the crew's QA agent: reviewable and run on
+    # every change, but advisory until QA is qualified, so they never hold.
+    # They are model-written, so they run only in a pinned container with no
+    # network, no capabilities, no token and a read-only copy of the repo.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: QA tests (advisory, sandboxed)
+        continue-on-error: true
+        run: |
+          if [ ! -d qa ]; then echo "No QA tests yet."; exit 0; fi
+          docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+            --memory 1g --pids-limit 256 --read-only --tmpfs /tmp --user 65534:65534 \
+            -v "$PWD:/work:ro" -w /work \
+            mirror.gcr.io/library/python@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f \
+            timeout 240 python -I -B -m unittest discover -s qa -v
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: The same pinned hooks as local commits
+        run: |
+          python -m pip install pre-commit==4.6.2
+          pre-commit run --all-files --show-diff-on-failure
+  browser:
+    # The trusted browser check runs in local CI's own image recipe (T-0911,
+    # infra/images/Dockerfile.crew-browser in Yard Crew): the same Playwright
+    # base by digest, its browsers, and the runner fonts the recipe adds, so a
+    # page passes here exactly when it passes locally. The site is checked at
+    # the root, as local CI checks it, and at the Pages path /<repository>/ it
+    # is published under (T-0504); Chromium decides both. Firefox, WebKit and
+    # an emulated iPhone 13 are compatibility evidence (T-0259), not a gate
+    # yet: each runs once, every one runs after a failure too, and each keeps
+    # its own receipt with the browser's version under qa-artifacts/.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf
+      options: --ipc=host
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      SITE_RELEASE: ${{ github.sha }}
+      PAGES_REPO: ${{ github.event.repository.name }}
+      CREW_PARTIAL: ${{ startsWith(github.base_ref, 'release/') && '1' || '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The runner fonts, as the local image's recipe adds them
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends fonts-dejavu-core=2.37-8
+          fc-match sans-serif | grep -q '^DejaVuSans.ttf:'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.21.0"
+      - name: Build the static export at the root and at the Pages path
+        id: site_build
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          NEXT_BASE_PATH="" npm run build
+          mv out dist
+          NEXT_BASE_PATH="/${PAGES_REPO}" npm run build
+          mv out dist-pages
+      # The checks run on the image's own Node, as local CI runs them.
+      - name: The pinned browser checks (the browsers are the image's)
+        id: browser_deps
+        working-directory: tests/browser
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+        run: |
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check the site at the root on phone and desktop (Chromium)
+        if: ${{ !cancelled() && steps.site_build.outcome == 'success' && steps.browser_deps.outcome == 'success' }}
+        shell: bash
+        env:
+          HOME: /tmp
+          CREW_QA_OUT: qa-artifacts/chromium-root
+        run: |
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          node tests/browser/serve.mjs dist 8000 / &
+          node tests/browser/qa.mjs http://127.0.0.1:8000/
+      - name: Check the site at its Pages path (Chromium)
+        if: ${{ !cancelled() && steps.site_build.outcome == 'success' && steps.browser_deps.outcome == 'success' }}
+        shell: bash
+        env:
+          HOME: /tmp
+          CREW_QA_OUT: qa-artifacts/chromium-pages
+        run: |
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          node tests/browser/serve.mjs dist-pages 8001 "/${PAGES_REPO}/" &
+          node tests/browser/qa.mjs "http://127.0.0.1:8001/${PAGES_REPO}/"
+      - name: Compatibility evidence (Firefox)
+        if: ${{ !cancelled() && steps.site_build.outcome == 'success' && steps.browser_deps.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          HOME: /tmp
+          CREW_QA_OUT: qa-artifacts/firefox-pages
+          CREW_BROWSER: firefox
+        run: |
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          node tests/browser/serve.mjs dist-pages 8002 "/${PAGES_REPO}/" &
+          node tests/browser/qa.mjs "http://127.0.0.1:8002/${PAGES_REPO}/"
+      - name: Compatibility evidence (WebKit)
+        if: ${{ !cancelled() && steps.site_build.outcome == 'success' && steps.browser_deps.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          HOME: /tmp
+          CREW_QA_OUT: qa-artifacts/webkit-pages
+          CREW_BROWSER: webkit
+        run: |
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          node tests/browser/serve.mjs dist-pages 8003 "/${PAGES_REPO}/" &
+          node tests/browser/qa.mjs "http://127.0.0.1:8003/${PAGES_REPO}/"
+      - name: Compatibility evidence (iPhone 13, WebKit)
+        if: ${{ !cancelled() && steps.site_build.outcome == 'success' && steps.browser_deps.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          HOME: /tmp
+          CREW_QA_OUT: qa-artifacts/iphone-13-pages
+          CREW_BROWSER: webkit
+          CREW_DEVICE: "iPhone 13"
+        run: |
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          node tests/browser/serve.mjs dist-pages 8004 "/${PAGES_REPO}/" &
+          node tests/browser/qa.mjs "http://127.0.0.1:8004/${PAGES_REPO}/"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: qa-screenshots
+          path: qa-artifacts/
+          retention-days: 7
