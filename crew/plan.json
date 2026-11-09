@@ -1,0 +1,86 @@
+{
+  "contracts": {
+    "task-home": {
+      "checks": [
+        "npm run build (a pinned build, no network)",
+        "python tests/site_view.py && python -m unittest discover -s tests (the frozen tests)",
+        "node tests/browser/qa.mjs (phone and desktop, axe, the quality floors)"
+      ],
+      "evaluator": {
+        "criteria": [
+          "design",
+          "originality",
+          "depth",
+          "craft",
+          "functionality"
+        ],
+        "hiddenCategories": 7,
+        "threshold": 7
+      },
+      "features": [
+        {
+          "done": "The analyst enters a collateral-less trader's alternative data — monthly mobile-money inflow and outflow, average market sales, and a short repayment history — and the worksheet returns a creditworthiness score with a written rationale and a recommended decision (approve / decline / refer for review (on `index`, working offline)",
+          "id": "M1",
+          "title": "Collateral-free credit scoring worksheet"
+        },
+        {
+          "done": "The analyst captures the trader's mobile-money flow, market sales and repayment history in one place, instead of juggling separate statements. (on `index`, working offline)",
+          "id": "M2",
+          "title": "Trader intake form"
+        },
+        {
+          "done": "The analyst keeps each scored application locally and can reopen it later or compare it to the same trader's next application, instead of losing the note when the session ends. (on `index`, working offline)",
+          "id": "M3",
+          "title": "Keep the scored record on-device"
+        },
+        {
+          "done": "The analyst lines up two kept scores side by side to check consistency across similar traders before a manager review. (on `index`, working offline)",
+          "id": "M4",
+          "title": "Compare two scored applications"
+        }
+      ],
+      "task": "task-home",
+      "title": "Design direction: home page and shared style"
+    }
+  },
+  "features": [
+    {
+      "id": "M1",
+      "notes": "Built on the home page: its page `worksheet` (Scoring worksheet) is deferred; this run's budget is 1 page.",
+      "outcome": "The analyst enters a collateral-less trader's alternative data — monthly mobile-money inflow and outflow, average market sales, and a short repayment history — and the worksheet returns a creditworthiness score with a written rationale and a recommended decision (approve / decline / refer for review",
+      "page": "index",
+      "passes": false,
+      "status": "in-progress",
+      "title": "Collateral-free credit scoring worksheet"
+    },
+    {
+      "id": "M2",
+      "notes": "Built on the home page: its page `worksheet` (Scoring worksheet) is deferred; this run's budget is 1 page.",
+      "outcome": "The analyst captures the trader's mobile-money flow, market sales and repayment history in one place, instead of juggling separate statements.",
+      "page": "index",
+      "passes": false,
+      "status": "in-progress",
+      "title": "Trader intake form"
+    },
+    {
+      "id": "M3",
+      "notes": "Built on the home page: its page `records` (Kept records) is deferred; this run's budget is 1 page.",
+      "outcome": "The analyst keeps each scored application locally and can reopen it later or compare it to the same trader's next application, instead of losing the note when the session ends.",
+      "page": "index",
+      "passes": false,
+      "status": "in-progress",
+      "title": "Keep the scored record on-device"
+    },
+    {
+      "id": "M4",
+      "notes": "Built on the home page: its page `records` (Kept records) is deferred; this run's budget is 1 page.",
+      "outcome": "The analyst lines up two kept scores side by side to check consistency across similar traders before a manager review.",
+      "page": "index",
+      "passes": false,
+      "status": "in-progress",
+      "title": "Compare two scored applications"
+    }
+  ],
+  "rules": "Agents change a feature's status and notes only, with update_plan; passes is set by trusted checks once the feature's task merged on green CI and a passing evaluation.",
+  "schema": "crew.plan@1"
+}
