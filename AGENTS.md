@@ -73,3 +73,23 @@ for GitHub Pages. People and agents who change it follow the same rules.
   published page shows its release marker. The crew's trusted release
   publishes `main` after its checks pass (a merge alone does not), and a
   release counts only once the live page shows it.
+
+## Map
+
+- `docs/PRD.md`: the product: personas, the core feature, the MVP and its non-goals.
+- `docs/ARCHITECTURE.md`: pages, content model, decisions and non-functional needs.
+- `brand/`: the brand kit: logo system, palette, type, voice and tokens.
+- `docs/design/`: the design system: tokens, motion, components and experience.
+- `crew/plan.json`: the feature list; `passes` is set by trusted checks only.
+- `PROGRESS.md`: where the work stands, the open sprint and the recent commits.
+- `docs/PLAN.md`: the tasks and their pull requests.
+
+## Start here
+
+Every role, every time, before any change:
+
+1. Read `PROGRESS.md`: where the work stands, the open sprint and the recent commits.
+2. Read `crew/plan.json`: every feature, its status and whether it passes.
+3. Read the recent commits in `PROGRESS.md` before you change anything.
+4. Run the checks before you change anything, so you know what already fails.
+5. Work on the open sprint's features only; set their status with `update_plan`.

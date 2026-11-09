@@ -1,0 +1,66 @@
+:root {
+  color-scheme: light;
+  --color-ink: #08231a;
+  --color-paper: #eef6f0;
+  --color-surface: #e2efe6;
+  --color-muted: #51645b;
+  --color-line: #c3d8cb;
+  --color-accent: #0d4028;
+  --color-accent-ink: #eef6f0;
+  --color-focus: #0d4028;
+  --color-success: #1f6d42;
+  --color-warning: #7a4b00;
+  --color-danger: #a83325;
+  --font-display: "Syne Variable", sans-serif;
+  --font-body: "Manrope Variable", sans-serif;
+  --font-mono: "JetBrains Mono Variable", monospace;
+  --text-xs: clamp(0.75rem, 0.75rem + 0vw, 0.75rem);
+  --text-sm: clamp(0.875rem, 0.875rem + 0vw, 0.875rem);
+  --text-base: clamp(1rem, 1rem + 0vw, 1rem);
+  --text-lg: clamp(1.125rem, 1.125rem + 0vw, 1.125rem);
+  --text-xl: clamp(1.375rem, 1.375rem + 0vw, 1.375rem);
+  --text-2xl: clamp(1.75rem, 1.75rem + 0vw, 1.75rem);
+  --text-3xl: clamp(2.25rem, 2.25rem + 0vw, 2.25rem);
+  --text-4xl: clamp(3rem, 3rem + 0vw, 3rem);
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2.5rem;
+  --space-5: 4rem;
+  --space-6: 6rem;
+  --radius-r-sm: 4px;
+  --radius-r-md: 8px;
+  --radius-r-lg: 14px;
+  --shadow-e-quiet: 0 0px 0px rgb(8 35 26 / 0%);
+  --shadow-e-ledger: 0 2px 6px rgb(8 35 26 / 8%);
+  --shadow-e-decision: 0 4px 12px rgb(8 35 26 / 14%);
+  --motion-d-settle: 220ms;
+  --motion-d-enter: 340ms;
+  --motion-d-shift: 480ms;
+  --motion-d-reveal: 640ms;
+  --motion-d-burst: 900ms;
+  --ease-e-canopy: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-e-ledger: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-e-decision: cubic-bezier(0.16, 0.84, 0.44, 1);
+  --reveal-step: 90ms;
+  --content-max: 70rem;
+  --measure: 68ch;
+  --target-min: 44px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-ink: #eef6f0;
+    --color-paper: #12422a;
+    --color-surface: #0c3320;
+    --color-muted: #9db8a9;
+    --color-line: #2c5a41;
+    --color-accent: #e7c04e;
+    --color-accent-ink: #12301f;
+    --color-focus: #f1cf6a;
+    --color-success: #86d39c;
+    --color-warning: #f1cf6a;
+    --color-danger: #f2938c;
+  }
+}
