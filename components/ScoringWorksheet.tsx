@@ -107,7 +107,7 @@ export default function ScoringWorksheet() {
           </div>
         </div>
         <div className="worksheet__actions">
-          <button type="button" className="button button--gold" onClick={() => { void keep(); }}>
+          <button type="button" className="button button--gold" onClick={() => { void keep(); }} aria-label="Keep this score on this device">
             Keep this score on this device
           </button>
           <button type="button" className="button button--quiet" onClick={reset}>

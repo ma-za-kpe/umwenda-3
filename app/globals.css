@@ -77,12 +77,21 @@ a{color:inherit;text-decoration:underline;text-underline-offset:3px;text-decorat
 :focus-visible{outline:3px solid var(--color-accent);outline-offset:3px;}
 
 .skip{
-  position:absolute;left:var(--space-4);top:-4rem;z-index:50;
+  position:absolute;left:var(--space-4);top:var(--space-4);z-index:50;
   background:var(--color-ink);color:var(--color-paper);
   padding:var(--space-2) var(--space-4);border-radius:var(--radius-sm);
-  text-decoration:none;transition:top var(--motion-base) var(--ease);
+  text-decoration:none;
+  clip-path:inset(50%);
+  width:1px;height:1px;
+  overflow:hidden;
+  white-space:nowrap;
 }
-.skip:focus{top:var(--space-4);}
+.skip:focus{
+  clip-path:none;
+  width:auto;height:auto;
+  overflow:visible;
+  white-space:normal;
+}
 
 .container{
   width:100%;

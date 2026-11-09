@@ -219,7 +219,7 @@ export default function Page() {
             <div className="prose">
               {"\n"}
               <p>
-                {"StartupTribunal's research says traditional lending in Rwanda focuses almost entirely on tangible assets like land or buildings, shutting out the majority of citizens and small traders who lack formal collateral. This, the research claims, forces creditworthy people into high-interest informal lenders or blocks them from accessing capital needed for business growth, emergencies, or home improvement. And the launch of EMMA, the research says, signals that banks themselves acknowledge this broken system."}
+                {"StartupTribunal's research reports: Traditional lending in Rwanda focuses almost entirely on tangible assets like land or buildings, shutting out the majority of citizens and small traders who lack formal collateral. This forces creditworthy people into high-interest informal lenders or blocks them from accessing capital needed for business growth, emergencies, or home improvement. The launch of EMMA signals that banks themselves acknowledge this broken system."}
               </p>
               {"\n"}
               <p>
@@ -245,9 +245,9 @@ export default function Page() {
             </div>
             {"\n"}
             <p className="credit">
-              {"Research by StartupTribunal — "}
+              {"Research by StartupTribunal: "}
               <a href="https://startuptribunal.com/catalog/rwandans-without-collateral-denied-bank-loans">
-                Rwandans Without Collateral Denied Bank Loans
+                https://startuptribunal.com/catalog/rwandans-without-collateral-denied-bank-loans
               </a>
               .
             </p>
@@ -271,19 +271,19 @@ export default function Page() {
             <ul className="nongoal-list">
               {"\n"}
               <li>
-                No live data feeds.
+                {"No live data feeds: the figures are entered by the analyst from the trader's documents, and nothing is pulled from a bank or a mobile-money operator."}
               </li>
               {"\n"}
               <li>
-                No loan-book management.
+                No portfolio or loan-book management: the worksheet scores individual applications and does not track disbursed loans, repayments over time, or team-wide dashboards.
               </li>
               {"\n"}
               <li>
-                No trader-facing app.
+                No consumer-facing trader app or account: only the analyst uses the product, and the trader does not.
               </li>
               {"\n"}
               <li>
-                No bureau or EMMA integration.
+                No integration with a credit bureau or EMMA: the worksheet stands alone on the device and reads from or writes to no external credit system.
               </li>
               {"\n"}
             </ul>
