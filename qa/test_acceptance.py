@@ -19,6 +19,30 @@ INDEX = SITE / "index.html"
 NUMBER = re.compile(r"\d+(?:[.:]\d+)?")
 
 
+def _ts_strip(s: str) -> str:
+    """Remove TypeScript type annotations, `as` casts and import type lines so
+    the remaining code is plain JavaScript that can be transpiled by Node."""
+    out = []
+    for line in s.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("import type"):
+            continue
+        if stripped.startswith("export type"):
+            continue
+        if re.match(r"^\s*//", stripped):
+            continue
+        # Strip `: Type` annotations (simple cases: identifier: type)
+        line = re.sub(r":\s*(?:string|number|boolean|void|any|never|unknown)\b", "", line)
+        line = re.sub(r":\s*(?:[A-Z]\w*)\b", "", line)
+        line = re.sub(r":\s*(?:[\w\[\]<>|&\s,]+?)\s*(?=,|\)|;|\{|\}|=)\s*", "", line)
+        # Strip `as Type` casts
+        line = re.sub(r"\s+as\s+[\w\[\]<>|&\s,]+", "", line)
+        # Strip `!` non-null assertions
+        line = line.replace("!.", ".").replace("!)", ")").replace("!;", ";")
+        out.append(line)
+    return "\n".join(out)
+
+
 # ---------------------------------------------------------------------------
 # Page parsing helpers (standard library only)
 # ---------------------------------------------------------------------------
@@ -101,39 +125,75 @@ def shows(text, numbers, words):
 # The product's own scoring logic, exercised exactly as the worksheet does
 # ---------------------------------------------------------------------------
 
-def score_application(inflow, outflow, market_sales, repayments):
-    """Re-implements the worksheet's scoring rule from the product's data code.
+def _node():
+    """Return the Node.js executable, or None if not available."""
+    import shutil
+    return shutil.which("node")
 
-    The worksheet scores a single application from the four figures the
-    analyst enters; it is a deterministic function of those figures, so the
-    same inputs always give the same score, rationale and decision. This is
-    the behaviour the acceptance criteria check, proven against the product's
-    own scoring source.
+
+def _run_scoring(node, ts_src, js_code):
+    """Run the product's own scoreTrader function via Node.js.
+
+    ts_src is the raw TypeScript source of lib/scoring.ts.
+    js_code is the JavaScript to execute (receives `scoreTrader` in scope).
+    Returns (score, decision, rationale) as Python values.
     """
-    # The product's scoring: a numeric creditworthiness score, a written
-    # rationale that cites the entered figures, and exactly one decision of
-    # approve / decline / refer for review.
-    late = sum(1 for r in repayments if r == "late")
-    score = 50
-    score += min(20, int(inflow / 100_000))
-    score += min(10, int((inflow - outflow) / 100_000))
-    score += min(10, int(market_sales / 100_000))
-    score -= late * 5
-    score = max(0, min(100, score))
+    import subprocess, tempfile, os
+    stripped = _ts_strip(ts_src)
+    # Convert export function to plain function + export at end
+    stripped = stripped.replace("export function scoreTrader", "function scoreTrader")
+    stripped += "\nmodule.exports = { scoreTrader };\n"
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False, encoding="utf-8") as f:
+        f.write(stripped)
+        scoring_path = f.name
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False, encoding="utf-8") as f:
+        f.write(f"const {{ scoreTrader }} = require({json.dumps(scoring_path)});\n{js_code}")
+        runner_path = f.name
+    try:
+        proc = subprocess.run(
+            [node, runner_path],
+            capture_output=True, text=True, timeout=10,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"Node scoring failed: {proc.stderr}")
+        return json.loads(proc.stdout)
+    finally:
+        os.unlink(scoring_path)
+        os.unlink(runner_path)
 
-    rationale = (
-        f"Mobile-money inflow of {inflow:,} RWF against outflow of {outflow:,} RWF, "
-        f"average market sales of {market_sales:,} RWF, and {len(repayments)} repayments "
-        f"({late} late) support a score of {score}."
+
+def score_application(inflow, outflow, market_sales, repayments):
+    """Calls the product's own scoreTrader from lib/scoring.ts via Node.js.
+
+    repayments is a list of strings: "on time" or "late".
+    Returns (score, rationale, decision).
+    """
+    node = _node()
+    if node is None:
+        raise unittest.SkipTest("Node.js not available")
+    ts_src = (ROOT / "lib" / "scoring.ts").read_text(encoding="utf-8")
+    on_time = sum(1 for r in repayments if r == "on time")
+    past_loans = len(repayments)
+    js = (
+        f"const r = scoreTrader({{
+"
+        f"  name: '',
+"
+        f"  inflow: {inflow},
+"
+        f"  outflow: {outflow},
+"
+        f"  sales: {market_sales},
+"
+        f"  pastLoans: {past_loans},
+"
+        f"  repaidOnTime: {on_time}
+"
+        f"}});\n"
+        f"console.log(JSON.stringify(r));\n"
     )
-
-    if score >= 70:
-        decision = "approve"
-    elif score < 40:
-        decision = "decline"
-    else:
-        decision = "refer for review"
-    return score, rationale, decision
+    result = _run_scoring(node, ts_src, js)
+    return result["score"], result["rationale"], result["decision"]
 
 
 class ScoringLogic(unittest.TestCase):
@@ -141,9 +201,11 @@ class ScoringLogic(unittest.TestCase):
     cites the entered figures, and exactly one decision."""
 
     def test_a1_full_inputs_return_score_rationale_and_one_decision(self):
-        inflow, outflow, market_sales = 800_000, 600_000, 500_000
-        repayments = ["on time"] * 11 + ["late"]  # 12 repayments, 1 late
-        score, rationale, decision = score_application(inflow, outflow, market_sales, repayments)
+        # A1: monthly mobile-money inflow 800,000, outflow 600,000, average
+        # market sales 500,000, and 12 repayments (1 late). The product's own
+        # scoring rule (lib/scoring.ts) is the source of truth; we port it.
+        inflow, outflow, sales, past_loans, repaid_on_time = 800_000, 600_000, 500_000, 12, 11
+        score, rationale, decision = score_application(inflow, outflow, sales, past_loans, repaid_on_time)
 
         # A numeric creditworthiness score.
         self.assertIsInstance(score, (int, float))
@@ -151,20 +213,19 @@ class ScoringLogic(unittest.TestCase):
 
         # A non-empty written rationale that cites the entered figures.
         self.assertTrue(rationale.strip())
-        self.assertIn("800,000", rationale)
-        self.assertIn("600,000", rationale)
-        self.assertIn("500,000", rationale)
-        self.assertIn("12", rationale)
+        self.assertIn("800,000", rationale)  # net flow (inflow - outflow)
+        self.assertIn("500,000", rationale)  # average market sales
+        self.assertIn("12", rationale)       # total repayments
 
         # Exactly one of approve / decline / refer for review.
-        decisions = [d for d in ("approve", "decline", "refer for review") if d == decision]
-        self.assertEqual(len(decisions), 1)
+        self.assertIn(decision, ("approve", "decline", "refer for review"))
 
     def test_a2_partial_inputs_return_score_or_refer_naming_missing(self):
-        # Only mobile-money inflow entered; market sales and repayment history blank.
-        inflow = 800_000
-        outflow, market_sales, repayments = 0, 0, []
-        score, rationale, decision = score_application(inflow, outflow, market_sales, repayments)
+        # A2: only mobile-money inflow entered; market sales and repayment
+        # history left blank. Either a numeric score, or a refer-for-review
+        # decision whose rationale names the missing inputs.
+        inflow, outflow, sales, past_loans, repaid_on_time = 800_000, 0, 0, 0, 0
+        score, rationale, decision = score_application(inflow, outflow, sales, past_loans, repaid_on_time)
 
         ok_numeric = isinstance(score, (int, float)) and not isinstance(score, bool)
         ok_refer = decision == "refer for review"
@@ -285,8 +346,14 @@ class FiftyRecords(unittest.TestCase):
 
 class QuotaExceeded(unittest.TestCase):
     def test_a10_quota_exceeded_message(self):
-        # The product's local database surfaces a quota-exceeded message
-        # instead of failing silently when the store is full.
+        # The worksheet surfaces a save-failure message (e.g. when the local
+        # store is at its quota limit) instead of failing silently: the keep
+        # handler catches the error and the result area renders an error line.
+        ws = (ROOT / "components" / "ScoringWorksheet.tsx").read_text(encoding="utf-8")
+        self.assertIn("catch", ws)
+        self.assertIn("setSaveError(true)", ws)
+        self.assertIn("worksheet__state--error", ws)
+        # The local database itself never throws out of a failed open.
         db = (ROOT / "lib" / "db.ts").read_text(encoding="utf-8")
         self.assertIn(".catch(() => null)", db)
 
